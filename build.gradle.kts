@@ -6,3 +6,4 @@ plugins {
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin) apply false
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.22" apply false
 }
+val defaultTargetSdkVersion by extra(35)

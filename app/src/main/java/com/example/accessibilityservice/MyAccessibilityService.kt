@@ -7,7 +7,6 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Transient
@@ -34,7 +33,7 @@ class MyAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_VIEW_CLICKED
         info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
         info.notificationTimeout = 100
-        info.flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        info.flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
         serviceInfo = info
     }
 
@@ -48,8 +47,15 @@ class MyAccessibilityService : AccessibilityService() {
         val screenData = extractScreenData(rootNode)
 
         // Send data to LLM (example: print to log)
-        val jsonData = Json.encodeToString(screenData)
-        Log.d(debugTag, "Screen Data: $jsonData")
+        val jsonString = Json.encodeToString(screenData)
+
+        // Split the JSON string into chunks of 4000 characters (max for logcat)
+        val chunkSize = 4000
+        val jsonChunks = jsonString.chunked(chunkSize)
+
+        jsonChunks.forEachIndexed { index, chunk ->
+            Log.d(debugTag, "Screen Data Chunk ${index + 1}/${jsonChunks.size}: $chunk")
+        }
 
         // Clean up the root node
         rootNode.recycle()
@@ -68,7 +74,17 @@ class MyAccessibilityService : AccessibilityService() {
             bounds = Rect().apply { node.getBoundsInScreen(this) },
             contentDescription = node.contentDescription?.toString(),
             packageName = node.packageName?.toString(),
-            windowId = node.windowId
+            windowId = node.windowId,
+            viewId = node.viewIdResourceName?.toString(),
+            hintText = node.hintText?.toString(),
+            actionList = node.actionList.map { it.toString() },
+            inputType = node.inputType,
+            labelFor = node.labelFor?.toString(),
+            stateDescription = node.stateDescription?.toString(),
+            tooltipText = node.tooltipText?.toString(),
+            uniqueId = node.hashCode(),
+            rangeInfo = node.rangeInfo?.run { RangeInfoData(current, min, max, type) },
+
         )
         views.add(viewData)
 
@@ -98,8 +114,20 @@ data class ViewData(
     val contentDescription: String? = null,
     val packageName: String? = null,
     val windowId: Int = -1,
-    @Transient val isVisible: Boolean = false
+    val viewId: String? = null,
+    val hintText: String? = null,
+    @Transient val isVisible: Boolean = false,
+    val actionList: List<String>,
+    val inputType: Int,
+    val labelFor: String? = null,
+    val stateDescription: String? = null,
+    val tooltipText: String? = null,
+    val uniqueId: Int,
+    val rangeInfo: RangeInfoData?,
 )
+@Serializable
+data class RangeInfoData(val current: Float, val min: Float, val max: Float, val type: Int)
+
 
 object RectSerializer : KSerializer<Rect> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Rect") {
