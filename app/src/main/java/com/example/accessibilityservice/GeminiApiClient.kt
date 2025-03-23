@@ -1,3 +1,4 @@
+import com.example.accessibilityservice.BuildConfig
 import com.google.gson.Gson
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -21,9 +22,7 @@ data class GenerateContentResponse(
 
 class GeminiApiClient {
 
-    // Replace with your actual API key.
-    private val apiKey = "AIzaSyAxEgcFiRq0wX7oNWWGpPBIVmlnbj42Bqo"
-    // Endpoint URL; adjust the model id as needed.
+    private val apiKey = BuildConfig.apikey
     private val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-001:generateContent?key=$apiKey"
     private val client = OkHttpClient()
     private val gson = Gson()
@@ -32,20 +31,17 @@ class GeminiApiClient {
         contents: List<Content>,
         onResult: (List<Content>?) -> Unit
     ) {
-        // Build the payload.
         val payload = GenerateContentPayload(contents)
         val jsonPayload = gson.toJson(payload)
         val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
         val requestBody = RequestBody.create(mediaType, jsonPayload)
 
-        // Build the POST request.
         val request = Request.Builder()
             .url(url)
             .post(requestBody)
             .addHeader("Content-Type", "application/json")
             .build()
 
-        // Execute the request asynchronously.
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 onResult(null)
@@ -63,9 +59,7 @@ class GeminiApiClient {
                         return
                     }
                     try {
-                        // Parse the JSON response into a GenerateContentResponse object.
                         val genResponse = gson.fromJson(responseBody, GenerateContentResponse::class.java)
-                        // Map the candidates to extract just the Content objects.
                         val generatedContents = genResponse.candidates.map { candidate -> candidate.content }
                         onResult(generatedContents)
                     } catch (e: Exception) {
