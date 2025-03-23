@@ -1,5 +1,6 @@
 package com.example.accessibilityservice
 
+import NetworkService
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.Rect
@@ -50,6 +51,8 @@ class MyAccessibilityService : AccessibilityService() {
         // Send data to LLM (example: print to log)
         val jsonData = Json.encodeToString(screenData)
         Log.d(debugTag, "Screen Data: $jsonData")
+
+        ConversationManager().UIUpdated(withJson = jsonData)
 
         // Clean up the root node
         rootNode.recycle()
