@@ -2,15 +2,22 @@ object NetworkService {
 
     private var conversationContentsCache: MutableList<Content> = mutableListOf()
 
-    fun getResponse(prompt: String, onResult: (String?) -> Unit) {
+    fun getResponse(prompt: List<ContentPart>, onResult: (String?) -> Unit) {
         addContent(prompt)
         val client = GeminiApiClient()
         client.generateContent(conversationContentsCache) { response ->
-            response?.let { conversationContentsCache.add(it.last()) }
+            response?.let { addContent(it.last().parts) }
             onResult(response?.lastOrNull()?.parts?.firstOrNull()?.text)
         }
     }
-    private fun addContent(prompt: String) {
-        conversationContentsCache.add(Content(listOf(ContentPart(prompt)), "user"))
+    private fun addContent(prompt: List<ContentPart>) {
+        if (conversationContentsCache.size < 5) {
+            conversationContentsCache.add(Content(prompt, "user"))
+        } else {
+            conversationContentsCache.removeAt(0)
+            conversationContentsCache.add(Content(prompt, "user"))
+        }
+
+
     }
 }

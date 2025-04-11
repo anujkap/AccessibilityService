@@ -1,4 +1,5 @@
 import com.example.accessibilityservice.BuildConfig
+import com.example.accessibilityservice.Constants
 import com.google.gson.Gson
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -8,8 +9,15 @@ import java.io.IOException
 
 data class ContentPart(val text: String)
 data class Content(val parts: List<ContentPart>, val role: String)
+data class SystemInstructionContent(val parts: List<ContentPart>)
 data class GenerateContentPayload(
-    val contents: List<Content>
+    val contents: List<Content>,
+    val systemInstruction: SystemInstructionContent = SystemInstructionContent(listOf(ContentPart(
+        Constants.UI_UPDATED_SYSTEM_INSTRUCTIONS))),
+    val generationConfig: GenerationConfig = GenerationConfig()
+)
+data class GenerationConfig (
+    val responseMimeType: String = "application/json"
 )
 
 // The response structure has a "candidates" array containing objects with a "content" field.
