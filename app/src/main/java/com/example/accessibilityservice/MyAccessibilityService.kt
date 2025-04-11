@@ -1,10 +1,9 @@
 package com.example.accessibilityservice
 
-import NetworkService
 import android.accessibilityservice.AccessibilityService
-import android.content.pm.PackageManager
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
@@ -16,9 +15,17 @@ class MyAccessibilityService : AccessibilityService() {
 
     private val debugTag = "MyAccessibilityService"
 
+    companion object{
+        private var service: MyAccessibilityService? = null
+        fun getService(): MyAccessibilityService? {
+            return service
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d(debugTag, "Service connected")
+        service = this
 
         // Configure the service (you can also do this in the XML)
         val info = AccessibilityServiceInfo()
@@ -32,12 +39,12 @@ class MyAccessibilityService : AccessibilityService() {
         val globalActions: List<AccessibilityNodeInfo.AccessibilityAction> = systemActions
         val globalActionNames: MutableList<String> = mutableListOf()
         for (action in globalActions) {
-            if (action.id == AccessibilityService.GLOBAL_ACTION_BACK ||
-                action.id == AccessibilityService.GLOBAL_ACTION_HOME ||
-                action.id == AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS ||
-                action.id == AccessibilityService.GLOBAL_ACTION_RECENTS ||
-                action.id == AccessibilityService.GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE ||
-                action.id == AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT
+            if (action.id == GLOBAL_ACTION_BACK ||
+                action.id == GLOBAL_ACTION_HOME ||
+                action.id == GLOBAL_ACTION_NOTIFICATIONS ||
+                action.id == GLOBAL_ACTION_RECENTS ||
+                action.id == GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE ||
+                action.id == GLOBAL_ACTION_TAKE_SCREENSHOT
             )
                 globalActionNames.add(getGlobalActionName(action))
         }
@@ -46,7 +53,7 @@ class MyAccessibilityService : AccessibilityService() {
         val packageManager = packageManager
         val installedPackages = packageManager.getInstalledPackages(0)
         val packageNames = installedPackages.map { it.packageName }
-        performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
+//        performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
         Log.d(debugTag, "Installed packages: $packageNames")
 
 
@@ -377,12 +384,12 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun getGlobalActionName(action: AccessibilityNodeInfo.AccessibilityAction): String {
         return when (action.id) {
-            AccessibilityService.GLOBAL_ACTION_BACK -> "GLOBAL_ACTION_BACK"
-            AccessibilityService.GLOBAL_ACTION_HOME -> "GLOBAL_ACTION_HOME"
-            AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS -> "GLOBAL_ACTION_NOTIFICATIONS"
-            AccessibilityService.GLOBAL_ACTION_RECENTS -> "GLOBAL_ACTION_RECENTS"
-            AccessibilityService.GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE -> "GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE"
-            AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT -> "GLOBAL_ACTION_TAKE_SCREENSHOT"
+            GLOBAL_ACTION_BACK -> "GLOBAL_ACTION_BACK"
+            GLOBAL_ACTION_HOME -> "GLOBAL_ACTION_HOME"
+            GLOBAL_ACTION_NOTIFICATIONS -> "GLOBAL_ACTION_NOTIFICATIONS"
+            GLOBAL_ACTION_RECENTS -> "GLOBAL_ACTION_RECENTS"
+            GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE -> "GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE"
+            GLOBAL_ACTION_TAKE_SCREENSHOT -> "GLOBAL_ACTION_TAKE_SCREENSHOT"
             else -> "Unknown Global Action"
         }
     }

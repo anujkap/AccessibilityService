@@ -9,6 +9,7 @@ package com.example.accessibilityservice
  * @property navigationType The type of navigation, if applicable.
  * @property packageName The package name of the app, if applicable.
  */
+@kotlinx.serialization.Serializable
 data class DeviceAction(
     val type: String,
     val targetId: String = "",

@@ -1,9 +1,7 @@
 package com.example.accessibilityservice
 
 import ContentPart
-import android.util.Log
 import com.google.gson.Gson
-import kotlinx.serialization.json.Json
 
 // Add Debounce
 // Add request creator
@@ -14,7 +12,9 @@ class ConversationManager {
 
     fun UIUpdated(withJson: String) {
         if (llmInteractor.canRequestLLM()) {
-            llmInteractor.askLLM(PromptCreator().createPromptForUIScreenUpdated(withJson), onResult = { response ->})
+            llmInteractor.askLLM(PromptCreator().createPromptForUIScreenUpdated(withJson), onResult = { response ->
+                MyAccessibilityService.getService()?.processActions(response.actions)
+            })
         }
 
     }
@@ -39,7 +39,7 @@ class LLMInteractor {
 
             response?.let { res ->
                 val data = ScreenResponseDeserializer().parseJson(res)
-                data?.let { d ->
+                data.let { d ->
                     onResult(d)
                     println("Response XXXXXX: $data")
                 }
@@ -54,7 +54,7 @@ class LLMInteractor {
 data class ScreenResponse(
     val responseType: String,
     val text: String,
-    val actions: List<String> = emptyList() // Default to empty list if actions are not present
+    val actions: List<DeviceAction> = emptyList()
 )
 
 class ScreenResponseDeserializer {
