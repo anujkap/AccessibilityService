@@ -11,7 +11,7 @@ object NetworkService {
         }
     }
     private fun addContent(prompt: List<ContentPart>) {
-        if (conversationContentsCache.size < 5) {
+        if (conversationContentsCache.size < 2) {
             conversationContentsCache.add(Content(prompt, "user"))
         } else {
             conversationContentsCache.removeAt(0)

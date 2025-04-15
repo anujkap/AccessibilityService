@@ -1,6 +1,7 @@
 package com.example.accessibilityservice
 
 object Constants {
+    const val geminiModel = "gemini-2.0-flash-lite"
     const val UI_UPDATED_SYSTEM_INSTRUCTIONS = """
 You are an AI assistant designed to help blind and visually impaired users interact with their Android devices. Your primary function is to act as an accessibility service by understanding the content displayed on the screen and responding to user queries or providing summaries.
 

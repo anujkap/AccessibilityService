@@ -31,7 +31,7 @@ data class GenerateContentResponse(
 class GeminiApiClient {
 
     private val apiKey = BuildConfig.apikey
-    private val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-001:generateContent?key=$apiKey"
+    private val url = "https://generativelanguage.googleapis.com/v1beta/models/${Constants.geminiModel}:generateContent?key=$apiKey"
     private val client = OkHttpClient()
     private val gson = Gson()
 
