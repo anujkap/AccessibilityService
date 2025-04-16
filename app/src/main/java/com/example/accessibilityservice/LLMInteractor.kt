@@ -2,27 +2,35 @@ package com.example.accessibilityservice
 
 import com.google.gson.Gson
 import ContentPart
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LLMInteractor {
     private val debugTag = "ConversationManager"
-    private var lastRequestTime = 0L
+    private val debouncePeriod = 1000L // 1 second
+    private val coroutineScope = CoroutineScope(Dispatchers.Default)
+    private var currentJob: Job? = null
 
     fun canRequestLLM(): Boolean {
-        return (System.currentTimeMillis() - lastRequestTime > 3000)
+        return true
     }
+
     fun askLLM(prompt: List<ContentPart>, onResult: (ScreenResponse) -> Unit) {
-        lastRequestTime = System.currentTimeMillis()
-        NetworkService.getResponse(prompt) { response ->
-
-            response?.let { res ->
-                val data = ScreenResponseDeserializer().parseJson(res)
-                data.let { d ->
-                    onResult(d)
-                    println("Response XXXXXX: $data")
+        currentJob?.cancel() // Cancel any existing job
+        currentJob = coroutineScope.launch {
+            delay(debouncePeriod) // Wait for the debounce period
+            withContext(Dispatchers.Main) { // Switch to main thread for onResult
+                NetworkService.getResponse(prompt) { response ->
+                    response?.let { res ->
+                        val data = ScreenResponseDeserializer().parseJson(res)
+                        onResult(data)
+                    }
                 }
-
             }
-
         }
     }
 }
@@ -35,7 +43,6 @@ data class ScreenResponse(
 )
 
 class ScreenResponseDeserializer {
-
     private val gson = Gson()
 
     // Function to deserialize JSON string into a ResponseData object.

@@ -14,6 +14,7 @@ import kotlinx.serialization.json.Json
 class MyAccessibilityService : AccessibilityService() {
 
     private val debugTag = "MyAccessibilityService"
+    private val conversationManager = ConversationManager(this)
 
     companion object{
         private var service: MyAccessibilityService? = null
@@ -55,6 +56,7 @@ class MyAccessibilityService : AccessibilityService() {
         val packageNames = installedPackages.map { it.packageName }
 //        performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
         Log.d(debugTag, "Installed packages: $packageNames")
+        conversationManager.serviceConnected()
 
 
 
@@ -79,8 +81,7 @@ class MyAccessibilityService : AccessibilityService() {
         jsonChunks.forEachIndexed { index, chunk ->
             Log.d(debugTag, "Screen Data Chunk ${index + 1}/${jsonChunks.size}: $chunk")
         }
-
-        ConversationManager().UIUpdated(withJson = jsonString)
+        conversationManager.UIUpdated(withJson = jsonString)
     }
 
     private fun extractScreenData(node: AccessibilityNodeInfo): ScreenData {
