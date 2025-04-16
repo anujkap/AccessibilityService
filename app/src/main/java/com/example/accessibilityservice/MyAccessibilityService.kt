@@ -142,7 +142,7 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             when {
                 action.type == "navigate" -> performNavigation(action.navigationType, action.packageName)
-                else -> performNodeActionWrapper(action.targetId, action.uniqueId, action.type, action.textToType)
+                else -> performNodeActionWrapper(action.viewId, action.uniqueId, action.type, action.argument, action.traverseDirection)
 
             }
         } catch (e: Exception) {
@@ -192,8 +192,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun performNodeActionWrapper(targetId: String, uniqueId: String,actionName: String, argument: String) {
-        val node = findNodeById(targetId, uniqueId)
+    private fun performNodeActionWrapper(targetId: String, uniqueId: String,actionName: String, argument: String, traverseDirection: String) {
+        val node = findNodeById(targetId, uniqueId, traverseDirection)
         if (argument.isNotEmpty()) {
             performNodeActionWithArgument(node, actionName, argument)
 
@@ -220,7 +220,7 @@ class MyAccessibilityService : AccessibilityService() {
      *                 - "ACTION_SET_TEXT": The new text content as a String.
      *                 - "ACTION_SET_SELECTION": A string in the format "start-end" where start and end are integers
      *                   representing the start and end indices of the selection.
-     *                 - "ACTION_SCROLL_TO_POSITION": A string in the format "row-column" where row and column are integers
+         *                 - "ACTION_SCROLL_TO_POSITION": A string in the format "row-column" where row and column are integers
      *                   representing the target row and column to scroll to.
      *
      * @throws ElementNotFoundException if the provided `node` is null.
@@ -320,7 +320,7 @@ class MyAccessibilityService : AccessibilityService() {
      * @param id The ID of the node to find.
      * @return The AccessibilityNodeInfo if found, null otherwise.
      */
-    private fun findNodeById(id: String, uniqueId: String): AccessibilityNodeInfo? {
+    private fun findNodeById(id: String, uniqueId: String, traverseDirection: String): AccessibilityNodeInfo? {
         val rootInActiveWindow = this.rootInActiveWindow
         rootInActiveWindow?.let { root ->
             val nodes = root.findAccessibilityNodeInfosByViewId(id)
@@ -329,12 +329,43 @@ class MyAccessibilityService : AccessibilityService() {
             }
 
             for(node in nodes){
-                if (node.uniqueId == uniqueId){
-                    return node
+                if (node.hashCode().toString() == uniqueId){
+                    if (traverseDirection.split('-')[0].equals("child")){
+                        return findChildWithUniqueId(node, traverseDirection.split('-')[1].toInt())
+                    }
+                    else if (traverseDirection.split('-')[0].equals("parent")){
+                        return findParentWithUniqueId(node, traverseDirection.split('-')[1].toInt(), root)
+                    }
+                    else if (traverseDirection == ""){
+                        return node
+                    }
                 }
             }
             return null
         } ?: return null
+    }
+
+    private fun findParentWithUniqueId(
+        node: AccessibilityNodeInfo,
+        uniqueId: Int,
+        root: AccessibilityNodeInfo
+    ): AccessibilityNodeInfo? {
+        if (node == root)
+            return null
+        if (node.parent.uniqueId?.equals(uniqueId) == true)
+            return node.parent
+        else
+            return findParentWithUniqueId(node.parent, uniqueId, root)
+    }
+
+    private fun findChildWithUniqueId(node: AccessibilityNodeInfo, uniqueId: Int): AccessibilityNodeInfo? {
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            if (child.uniqueId == uniqueId.toString()) {
+                return child
+            }
+        }
+        return null
     }
 
     /**
@@ -376,7 +407,7 @@ class MyAccessibilityService : AccessibilityService() {
 //            "ACTION_SET_PROGRESS" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS
             "ACTION_SET_SELECTION" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_SELECTION
             "ACTION_SET_TEXT" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT
-            "ACTION_SHOW_ON_SCREEN" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN
+            "ACTION_SHOW_ON_SCREEN" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN // Not implemented on LLM
           else -> null
         }
         return actionId?.id
