@@ -13,15 +13,12 @@ import kotlinx.coroutines.*
 class ConversationManager(private val context: Context) { // Accept Context here
 
     private val llmInteractor = LLMInteractor()
-
-    private val managerJob = Job()
-    private val managerScope = CoroutineScope(Dispatchers.Main + managerJob)
-
     private var speechListener: SpeechToTextListener? = null
     private var announcer: AccessibilityAnnouncer? = null
     private var canStartConversation = false
     private var isAnnouncing = false
     private var isListening = false
+    private var latestScreenJson: String? = null
 
 
     companion object {
@@ -29,6 +26,7 @@ class ConversationManager(private val context: Context) { // Accept Context here
     }
 
     fun UIUpdated(withJson: String) {
+        latestScreenJson = withJson
         if (!canStartConversation) { return }
         if (llmInteractor.canRequestLLM()) {
             Log.d(TAG, "UI Updated with json")
@@ -85,11 +83,12 @@ class ConversationManager(private val context: Context) { // Accept Context here
     private fun updatedUserConversation(text: String) {
         if (llmInteractor.canRequestLLM()) {
             Log.d(TAG, "UI Updated with json")
-            llmInteractor.askLLM(PromptCreator().createPromptForUserVoiceInput(text), onResult = { response ->
-                val service = MyAccessibilityService.getService()
-                service?.processActions(response.actions)
-                Log.d(TAG, "Response text: ${response.text}")
-                announce(response.text)
+            llmInteractor.askLLM(PromptCreator().createPromptForUserVoiceInput(text, latestScreenJson),
+                onResult = { response ->
+                    val service = MyAccessibilityService.getService()
+                    service?.processActions(response.actions)
+                    Log.d(TAG, "Response text: ${response.text}")
+                    announce(response.text)
             })
         }
     }
