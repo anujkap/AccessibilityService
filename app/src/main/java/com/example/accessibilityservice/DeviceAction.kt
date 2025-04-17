@@ -1,5 +1,7 @@
 package com.example.accessibilityservice
 
+import kotlinx.serialization.Serializable
+
 /**
  * Represents a single action to be performed by the accessibility service.
  *
@@ -9,13 +11,13 @@ package com.example.accessibilityservice
  * @property navigationType The type of navigation, if applicable.
  * @property packageName The package name of the app, if applicable.
  */
-@kotlinx.serialization.Serializable
+@Serializable
 data class DeviceAction(
     val type: String,
     val viewId: String = "",
     val argument: String = "",
     val navigationType: String = "",
     val packageName: String = "",
-    val uniqueId:String = "",
+    val bounds: String = "",
     val traverseDirection:String = ""
 )

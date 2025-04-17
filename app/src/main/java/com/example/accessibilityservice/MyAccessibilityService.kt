@@ -15,9 +15,10 @@ class MyAccessibilityService : AccessibilityService() {
 
     private val debugTag = "MyAccessibilityService"
     private val conversationManager = ConversationManager(this)
-
+    private var foundChild : MutableList<AccessibilityNodeInfo> = mutableListOf()
     companion object{
         private var service: MyAccessibilityService? = null
+        var packageNames = listOf<String>()
         fun getService(): MyAccessibilityService? {
             return service
         }
@@ -53,11 +54,10 @@ class MyAccessibilityService : AccessibilityService() {
 
         val packageManager = packageManager
         val installedPackages = packageManager.getInstalledPackages(0)
-        val packageNames = installedPackages.map { it.packageName }
+        packageNames = installedPackages.map { it.packageName }
 //        performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
         Log.d(debugTag, "Installed packages: $packageNames")
         conversationManager.serviceConnected()
-
 
 
     }
@@ -81,6 +81,7 @@ class MyAccessibilityService : AccessibilityService() {
         jsonChunks.forEachIndexed { index, chunk ->
             Log.d(debugTag, "Screen Data Chunk ${index + 1}/${jsonChunks.size}: $chunk")
         }
+
         conversationManager.UIUpdated(withJson = jsonString)
     }
 
@@ -94,7 +95,7 @@ class MyAccessibilityService : AccessibilityService() {
         val viewData = ViewData(
             text = node.text?.toString(),
             className = node.className?.toString(),
-            bounds = Rect().apply { node.getBoundsInScreen(this) },
+            bounds = Rect().apply { node.getBoundsInScreen(this) }.flattenToString(),
             contentDescription = node.contentDescription?.toString(),
             packageName = node.packageName?.toString(),
             windowId = node.windowId,
@@ -143,7 +144,7 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             when {
                 action.type == "navigate" -> performNavigation(action.navigationType, action.packageName)
-                else -> performNodeActionWrapper(action.viewId, action.uniqueId, action.type, action.argument, action.traverseDirection)
+                else -> performNodeActionWrapper(action.viewId, action.bounds, action.type, action.argument, action.traverseDirection)
 
             }
         } catch (e: Exception) {
@@ -193,13 +194,14 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun performNodeActionWrapper(targetId: String, uniqueId: String,actionName: String, argument: String, traverseDirection: String) {
-        val node = findNodeById(targetId, uniqueId, traverseDirection)
+    private fun performNodeActionWrapper(targetId: String, bounds: String, actionName: String, argument: String, traverseDirection: String) {
+        foundChild = mutableListOf()
+        findChildWithBounds(rootInActiveWindow,bounds)
         if (argument.isNotEmpty()) {
-            performNodeActionWithArgument(node, actionName, argument)
+            performNodeActionWithArgument(foundChild, actionName, argument)
 
         } else {
-            performNodeAction(node, actionName)
+            performNodeAction(foundChild, actionName)
         }
     }
 
@@ -212,7 +214,7 @@ class MyAccessibilityService : AccessibilityService() {
      * to the AccessibilityNodeInfo. It handles the creation of the appropriate argument Bundle
      * based on the provided action name.
      *
-     * @param node The AccessibilityNodeInfo on which to perform the action.
+     * @param nodeList The AccessibilityNodeInfo on which to perform the action.
      * @param actionName The name of the action to perform. Supported actions are:
      *                   - "ACTION_SET_TEXT": Sets the text content of the node.
      *                   - "ACTION_SET_SELECTION": Sets the selection range of the node.
@@ -228,7 +230,7 @@ class MyAccessibilityService : AccessibilityService() {
      * @throws IllegalArgumentException if an unsupported `actionName` is provided or if the argument format is incorrect.
      * @throws NumberFormatException if argument contains non integer values where integers are expected
      */
-    private fun performNodeActionWithArgument(node: AccessibilityNodeInfo?, actionName: String, argument: String) {
+    private fun performNodeActionWithArgument(nodeList: List<AccessibilityNodeInfo>?, actionName: String, argument: String) {
         val actionId = getAccessibilityNodeInfoActionId(actionName)
         when(actionName) {
             "ACTION_SET_TEXT" -> {
@@ -237,9 +239,9 @@ class MyAccessibilityService : AccessibilityService() {
                     AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
                     argument
                 )
-                node?.performAction(actionId!!, arguments)
-                    ?: throw ElementNotFoundException("Element not found")
-
+                for (node in nodeList!!) {
+                    node.performAction(actionId!!, arguments)
+                }
             }
 
             "ACTION_SET_SELECTION" -> {
@@ -252,8 +254,9 @@ class MyAccessibilityService : AccessibilityService() {
                     AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT,
                     argument.split("-")[1].toInt()
                 )
-                node?.performAction(actionId!!, arguments)
-                    ?: throw ElementNotFoundException("Element not found")
+                for (node in nodeList!!) {
+                    node.performAction(actionId!!, arguments)
+                }
             }
 
             "ACTION_SCROLL_TO_POSITION" -> {
@@ -266,9 +269,20 @@ class MyAccessibilityService : AccessibilityService() {
                     AccessibilityNodeInfo.ACTION_ARGUMENT_COLUMN_INT,
                     argument.split("-")[1].toInt()
                 )
+                for (node in nodeList!!) {
+                    node.performAction(actionId!!, arguments)
+                }
+            }
 
-                node?.performAction(actionId!!, arguments)
-                    ?: throw ElementNotFoundException("Element not found")
+            "ACTION_SET_PROGRESS" -> {
+                val arguments = Bundle()
+                arguments.putFloat(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE,
+                    argument.toFloat()
+                )
+                for (node in nodeList!!) {
+                    node.performAction(actionId!!, arguments)
+                }
             }
 
             else -> {
@@ -291,10 +305,13 @@ class MyAccessibilityService : AccessibilityService() {
      * @throws ElementNotFoundException if the node is null after an actionId was found.
      * @throws IllegalArgumentException if `actionName` is not a valid action supported by `getAccessibilityNodeInfoActionId`
      */
-    private fun performNodeAction(node: AccessibilityNodeInfo?, actionName: String) {
+    private fun performNodeAction(nodeList: List<AccessibilityNodeInfo?>, actionName: String) {
         val actionId = getAccessibilityNodeInfoActionId(actionName)
         if (actionId != null) {
-            node?.performAction(actionId) ?: throw ElementNotFoundException("Element not found")
+            for (node in nodeList) {
+                node?.performAction(actionId)
+                node?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
+            }
 
         }else{
             Log.e("Error", "Unknown action name: $actionName")
@@ -308,65 +325,22 @@ class MyAccessibilityService : AccessibilityService() {
      * @param packageName The package name of the app to open.
      */
     private fun openApp(packageName: String) {
-        val launchIntent: Intent? = this.packageManager.getLaunchIntentForPackage(packageName)
+        val launchIntent: Intent? = service!!.packageManager.getLaunchIntentForPackage(packageName)
         launchIntent?.let {
             it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             this.startActivity(it)
         } ?: throw AppNotFoundException("App with package name: $packageName not found")
     }
 
-    /**
-     * Finds an AccessibilityNodeInfo by its ID.
-     *
-     * @param id The ID of the node to find.
-     * @return The AccessibilityNodeInfo if found, null otherwise.
-     */
-    private fun findNodeById(id: String, uniqueId: String, traverseDirection: String): AccessibilityNodeInfo? {
-        val rootInActiveWindow = this.rootInActiveWindow
-        rootInActiveWindow?.let { root ->
-            val nodes = root.findAccessibilityNodeInfosByViewId(id)
-            if (nodes.isNullOrEmpty()) {
-                return null
-            }
 
-            for(node in nodes){
-                if (node.hashCode().toString() == uniqueId){
-                    if (traverseDirection.split('-')[0].equals("child")){
-                        return findChildWithUniqueId(node, traverseDirection.split('-')[1].toInt())
-                    }
-                    else if (traverseDirection.split('-')[0].equals("parent")){
-                        return findParentWithUniqueId(node, traverseDirection.split('-')[1].toInt(), root)
-                    }
-                    else if (traverseDirection == ""){
-                        return node
-                    }
-                }
-            }
-            return null
-        } ?: return null
-    }
-
-    private fun findParentWithUniqueId(
-        node: AccessibilityNodeInfo,
-        uniqueId: Int,
-        root: AccessibilityNodeInfo
-    ): AccessibilityNodeInfo? {
-        if (node == root)
-            return null
-        if (node.parent.uniqueId?.equals(uniqueId) == true)
-            return node.parent
-        else
-            return findParentWithUniqueId(node.parent, uniqueId, root)
-    }
-
-    private fun findChildWithUniqueId(node: AccessibilityNodeInfo, uniqueId: Int): AccessibilityNodeInfo? {
+    private fun findChildWithBounds(node: AccessibilityNodeInfo, boundsString: String) {
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
-            if (child.uniqueId == uniqueId.toString()) {
-                return child
+            if (Rect().apply { child.getBoundsInScreen(this) }.flattenToString() == boundsString) {
+                foundChild.add(child)
             }
+            findChildWithBounds(child, boundsString)
         }
-        return null
     }
 
     /**
@@ -405,7 +379,7 @@ class MyAccessibilityService : AccessibilityService() {
             "ACTION_SCROLL_FORWARD" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD
             "ACTION_SCROLL_TO_POSITION" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION
             "ACTION_SELECT" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SELECT
-//            "ACTION_SET_PROGRESS" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS
+            "ACTION_SET_PROGRESS" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS
             "ACTION_SET_SELECTION" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_SELECTION
             "ACTION_SET_TEXT" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT
             "ACTION_SHOW_ON_SCREEN" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN // Not implemented on LLM
